@@ -1,14 +1,13 @@
-const  express = require('express')
-const posts = require('./data');
 
-const app = express();
-app.use(express.json())
+const posts = require('../data');
 
-app.get('/posts', (req, res) => {
+
+
+const getPosts = (req, res) => {
     res.status(200).json(posts);
-}) 
+}
 
-app.post('/posts', (req, res) => {
+const createPost = (req, res) => {
   const { title, content, author } = req.body;
 
   if (!title || !content || !author) {
@@ -31,12 +30,12 @@ if(posts.length > 0) {
 posts.push(newPost);
 res.status(201).json(newPost);
 
-}); 
+}
 
 
-app.delete('/posts/:id', (req, res) => {
+const deletePost = (req, res) => {
   const postId = parseInt(req.params.id);
-  const postIndex = posts.findIndex(post => postId === posts.id);
+  const postIndex = posts.findIndex(post => postId === post.id);
 
   if (postIndex === -1) {
   return res.status(404).json({message: 'Post not found'})
@@ -47,10 +46,10 @@ app.delete('/posts/:id', (req, res) => {
     message: 'Post deleted successfully', 
     post: deletedPost 
   });
-});
+}
 
 
-app.put('/posts/:id', (req, res) => {
+const updatePost = (req, res) => {
   const postId = parseInt(req.params.id);
   const postIndex = posts.findIndex(post => post.id === postId);
   
@@ -72,10 +71,21 @@ app.put('/posts/:id', (req, res) => {
     message: 'Post updated successfully',
     post: posts[postIndex]
   });
-});
+}
 
+const getPostByID = (req, res) => {
+    const postID = parseInt(req.params.id)
+    const post = posts.find(t => t.id === postID)
 
-app.patch('/posts/:id/publish', (req, res) => {
+    if (!post){
+        res.status(404).json({message: 'Post not found'})
+    }
+    else{
+        res.status(201).json(post)
+    }
+}
+
+const publishPost = (req, res) => {
     const {published} = req.body;
     if(published === undefined) {
         res.status(400).json({ message: 'published is required' });
@@ -92,21 +102,14 @@ app.patch('/posts/:id/publish', (req, res) => {
     post.published = published;
     post.updatedAt = new Date().toISOString();
     res.status(200).json(post);
-});
+}
 
-
-
-app.listen(3002, () => {
-    console.log("server is running at http://localhost:3002");
-
-})
 
 module.exports = {
     getPosts,
     createPost,
-    deletePost,
-    getPostbyId,
     updatePost,
     publishPost,
     deletePost,
+    getPostByID
 } 
