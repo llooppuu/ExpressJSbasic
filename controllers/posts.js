@@ -1,82 +1,34 @@
+const { readFile } = require('../utils/files')
+const { writeFile } = require('../utils/files')
 
-const posts = require('../data');
-
-
-
-const getPosts = (req, res) => {
-    res.status(200).json(posts);
+function validatePost(post){
+    if (3 <= post.title.length 
+        && post.title.length <= 120 
+        && post.content.length > 10 
+        && post.author.length > 0){
+        return true
+    }
+    return false
 }
 
-const createPost = (req, res) => {
-  const { title, content, author } = req.body;
-
-  if (!title || !content || !author) {
-    return res.status(400).json({ message: 'Title, content, and author are required' });
-  }
-
-
-const newPost = {};
-newPost.title = title;
-newPost.content = content;
-newPost.author = author;
-newPost.published = false;
-newPost.createdAt = new Date().toISOString();
-newPost.updatedAt = new Date().toISOString();
-if(posts.length > 0) {
-    newPost.id = posts[posts.length - 1].id +1; 
-} else {
-    newPost.id = 1;
-} 
-posts.push(newPost);
-res.status(201).json(newPost);
-
+const initPost = async() => {
+    const posts = await readFile("./data/posts.json")
+    if (posts === null){
+        return []
+    }
+    return posts
 }
 
-
-const deletePost = (req, res) => {
-  const postId = parseInt(req.params.id);
-  const postIndex = posts.findIndex(post => postId === post.id);
-
-  if (postIndex === -1) {
-  return res.status(404).json({message: 'Post not found'})
-  }
-  const deletedPost = posts.splice(postIndex, 1)[0];
-  
-  res.status(200).json({ 
-    message: 'Post deleted successfully', 
-    post: deletedPost 
-  });
+const getPosts = async(req, res) => {
+    const posts = await initPost()
+    const publishedPosts = posts.filter( (post) => {return post.published === true})
+    res.json(publishedPosts);
 }
 
-
-const updatePost = (req, res) => {
-  const postId = parseInt(req.params.id);
-  const postIndex = posts.findIndex(post => post.id === postId);
-  
-  if (postIndex === -1) {
-    return res.status(404).json({ message: 'Post not found' });
-  }
-  
-  const {title, content, author} = req.body;
-  if (!title || !content || !author) {
-    return res.status(400).json({message: 'All fields (title, content, author) are required' });
-  }
-
-  posts[postIndex].title = title;
-  posts[postIndex].content = content;
-  posts[postIndex].author = author;
-  posts[postIndex].updatedAt = new Date().toISOString();
-  
-  res.status(200).json({
-    message: 'Post updated successfully',
-    post: posts[postIndex]
-  });
-}
-
-const getPostByID = (req, res) => {
+const getPostByID = async(req, res) => {
+    const posts = await initPost()
     const postID = parseInt(req.params.id)
     const post = posts.find(t => t.id === postID)
-
     if (!post){
         res.status(404).json({message: 'Post not found'})
     }
@@ -85,31 +37,82 @@ const getPostByID = (req, res) => {
     }
 }
 
-const publishPost = (req, res) => {
-    const {published} = req.body;
-    if(published === undefined) {
-        res.status(400).json({ message: 'published is required' });
-        return;
+const postPost = async(req, res) => {
+    const posts = await initPost()
+    newPost = req.body
+    if (validatePost(newPost)){
+        newPost.id = posts.length > 0 ? Math.max(...posts.map(t => t.id)) + 1 : 1
+        newPost.createdAt = (new Date).toISOString()
+        newPost.updatedAt = (new Date).toISOString()
+        newPost.published = false
+        posts.push(newPost)
+        }
+    else{
+        res.status(400).json({message: 'Invalid JSON'})
+        return
     }
-    const id = parseInt(req.params.id);
-    const post = posts.find( (post) => {
-        return post.id === id;
-    });
-    if(!post) {
-        res.status(404).json({ message: 'Post not found' });
-        return;
-    }
-    post.published = published;
-    post.updatedAt = new Date().toISOString();
-    res.status(200).json(post);
+    await writeFile('./data/posts.json', posts)
+    res.status(201).json(newPost)
 }
 
+const putPost = async(req, res) => {
+    const posts = await initPost()
+    const id = parseInt(req.params.id)
+    const index = posts.findIndex(t => t.id === id)
+    postUpdate = req.body
+    if (validatePost(postUpdate)){
+        console.log('jtuejwhnwe')
+        posts[index].title = postUpdate.title
+        posts[index].content = postUpdate.content
+        posts[index].author = postUpdate.author
+        posts[index].published = postUpdate.published
+        posts[index].updatedAt = (new Date()).toISOString()
+        await writeFile('./data/posts.json', posts)
+        res.status(200).json(posts[index])
+    }
+}
+
+const patchPost = async(req, res) => {
+    const posts = await initPost()
+    const {published} = req.body
+
+    const id = parseInt(req.params.id)
+    const index = posts.findIndex(t => t.id === id)
+
+    if (index < 0){
+        res.status(404).json({message: 'Post not found'})
+    }
+    else{
+        if (posts[index].published === false){
+            posts[index].published = true
+        }
+        else {
+            posts[index].published = false
+        }
+        posts[index].updatedAt = (new Date).toISOString()
+        await writeFile('./data/posts.json', posts)
+        res.status(201).json(posts[index])
+    }
+}
+
+const deletePost = async(req, res) => {
+    const posts = await initPost()
+    const id = parseInt(req.params.id)
+    const index = posts.findIndex(t => t.id === id)
+    if (index !== -1) {
+        posts.splice(index, 1)
+        await writeFile('./data/posts.json', posts)
+        res.status(204).json({message: 'Post has been deleted'})
+    } else {
+        res.status(404).json({message: 'Post not found'})
+    }
+}
 
 module.exports = {
     getPosts,
-    createPost,
-    updatePost,
-    publishPost,
-    deletePost,
-    getPostByID
-} 
+    getPostByID,
+    postPost,
+    patchPost,
+    putPost,
+    deletePost
+}
